@@ -28,7 +28,7 @@ enable secret 5 secret
 
 !
 
-username netadmin privilege 15 secret 5 secret
+username admin privilege 15 secret 5 secret
 
 aaa new-model
 
@@ -36,17 +36,17 @@ aaa new-model
 
 !
 
-{% if ise_region == 'ISE-EMEA' -%}
+{% if ise_region == 'ISE-1' -%}
 
-aaa authentication login default group  EMEA-TACACS  group tacacs+ local
+aaa authentication login default group  EMEA  group tacacs+ local
 
-{%- elif ise_region == 'ISE-ASIA' -%}
+{%- elif ise_region == 'ISE-2' -%}
 
-aaa authentication login default group  APAC-TACACS  group tacacs+ local
+aaa authentication login default group  APAC  group tacacs+ local
 
-{%- elif ise_region == 'ISE-NAFTA' -%}
+{%- elif ise_region == 'ISE-3' -%}
 
-aaa authentication login default group  NAFTA-TACACS  group tacacs+ local
+aaa authentication login default group  NAFTA  group tacacs+ local
 
 {%- endif %}
 
@@ -56,17 +56,17 @@ aaa authorization console
 
 aaa authorization config-commands
 
-{% if ise_region == 'ISE-EMEA' -%}
+{% if ise_region == 'ISE-1' -%}
 
-aaa authorization exec default group EMEA-TACACS  group tacacs+ local
+aaa authorization exec default group EMEA  group tacacs+ local
 
-{%- elif ise_region == 'ISE-ASIA' -%}
+{%- elif ise_region == 'ISE-2' -%}
 
-aaa authorization exec default group APAC-TACACS  group tacacs+ local
+aaa authorization exec default group APAC  group tacacs+ local
 
-{%- elif ise_region == 'ISE-NAFTA' -%}
+{%- elif ise_region == 'ISE-3' -%}
 
-aaa authorization exec default group NAFTA-TACACS  group tacacs+ local
+aaa authorization exec default group NAFTA  group tacacs+ local
 
 {%- endif %}
 
@@ -74,31 +74,31 @@ aaa authorization exec host local
 
 aaa authorization commands 15 host local
 
-{% if ise_region == 'ISE-EMEA' -%}
+{% if ise_region == 'ISE-1' -%}
 
-aaa accounting exec default start-stop group EMEA-TACACS  group tacacs+
+aaa accounting exec default start-stop group EMEA group tacacs+
 
-{%- elif ise_region == 'ISE-ASIA' -%}
+{%- elif ise_region == 'ISE-2' -%}
 
-aaa accounting exec default start-stop group APAC-TACACS  group tacacs+
+aaa accounting exec default start-stop group APAC  group tacacs+
 
-{%- elif ise_region == 'ISE-NAFTA' -%}
+{%- elif ise_region == 'ISE-3' -%}
 
-aaa accounting exec default start-stop group NAFTA-TACACS  group tacacs+
+aaa accounting exec default start-stop group NAFTA  group tacacs+
 
 {%- endif %}
 
-{% if ise_region == 'ISE-EMEA' -%}
+{% if ise_region == 'ISE-1' -%}
 
-aaa authorization commands 15 default group EMEA-TACACS  group tacacs+ local
+aaa authorization commands 15 default group EMEA  group tacacs+ local
 
-{%- elif ise_region == 'ISE-ASIA' -%}
+{%- elif ise_region == 'ISE-2' -%}
 
-aaa authorization commands 15 default group APAC-TACACS  group tacacs+ local
+aaa authorization commands 15 default group APAC  group tacacs+ local
 
-{%- elif ise_region == 'ISE-NAFTA' -%}
+{%- elif ise_region == 'ISE-3' -%}
 
-aaa authorization commands 15 default group NAFTA-TACACS  group tacacs+ local
+aaa authorization commands 15 default group NAFTA  group tacacs+ local
 
 {%- endif %}
 
@@ -112,7 +112,7 @@ exit
 
 !
 
-netadmin
+admin
 
 !
 
@@ -120,7 +120,7 @@ netadmin
 
 !
 
-! From here you have to logout and login with local admin! Command authorization
+! logout and login with local admin!
 
 !
 
@@ -130,13 +130,13 @@ netadmin
 
 no ip domain lookup
 
-ip domain name leoni.local
+ip domain name fdoamain.local
 
 crypto key generate rsa general-keys modulus 2048
 
 ip ssh version 2
 
-ip name-server 10.216.67.4 10.216.67.5
+ip name-server 10.1.1.1
 
 vtp mode transparent
 
@@ -178,15 +178,15 @@ spanning-tree pathcost method long
 
 !
 
-vlan 111
+vlan 10
 
 name mgmt
 
-vlan 144
+vlan 20
 
 name clients
 
-vlan 152
+vlan 30
 
 name voice
 
@@ -200,7 +200,7 @@ shutdown
 
 !
 
-interface Vlan111
+interface Vlan10
 
 description mgmt
 
@@ -214,29 +214,17 @@ no ip http server
 
 no ip http secure-server
 
-logging host 10.1.15.155
-
-access-list 10 remark NodeManager
-
-access-list 10 permit 10.1.11.29
-
-access-list 10 permit 10.1.11.62
-
-access-list 10 permit 10.1.11.227
-
-access-list 19 permit 10.1.15.86
-
-access-list 19 remark Smartcollector
+logging host 10.1.1.2
 
 !
 
 snmp-server group snmpv3-group v3 priv write snmpv3-write
 
-snmp-server user Leoniv3-l2 snmpv3-group v3 auth sha hc63g37r3!&d6 priv aes 128 h7435j&(shg1hz
+snmp-server user Leoniv3-l2 snmpv3-group v3 auth sha ghwnbsbarrgtfdga651651dfb65a1gb
 
-snmp-server community 5pG9nFS2 RO 10
+snmp-server community 1g6th16wrth16 RO 10
 
-snmp-server community fyiuhGpeYvq4SokT RO 19
+snmp-server community 6hrt6wth516th16T RO 19
 
 snmp-server location "{{ snmp_location }}"
 
@@ -250,86 +238,71 @@ netconf-yang
 
 !
 
-{% if ise_region == 'ISE-EMEA' -%}
+{% if ise_region == 'ISE-1' -%}
 
-tacacs server F5-GBL
+tacacs server London
 
-address ipv4 10.1.254.2
+address ipv4 10.1.22.254
 
-key 0 $hs7Bg!sPqT1!
+key 0 EQRVQEVQE
 
-aaa group server tacacs+ EMEA-TACACS
+aaa group server tacacs+ EMEA
 
-server name F5-GBL
+server name London
 
-{%- elif ise_region == 'ISE-ASIA' -%}
+{%- elif ise_region == 'ISE-2' -%}
 
-tacacs server APAC-PSN03
+tacacs server China
 
-address ipv4 10.168.131.13
+address ipv4 10.16.50.30
 
-key 7 13411F015C2E036B381439076463
+key 7 1YDT46565UHVGCV
 
 
-tacacs server APAC-PSN04
+tacacs server Japon
 
-address ipv4 10.168.131.14
+address ipv4 10.16.50.50
 
 key 7 100A010A5235154A1F343B1F7569
 
 
-aaa group server tacacs+ APAC-TACACS
+aaa group server tacacs+ APAC
 
-server name APAC-PSN03
+server name China
 
-server name APAC-PSN04
+server name Japon
 
-ip tacacs source-interface Vlan111
+ip tacacs source-interface Vlan10
 
-{%- elif ise_region == 'ISE-NAFTA' -%}
+{%- elif ise_region == 'ISE-3' -%}
 
-tacacs server F5-GBL
+tacacs server London
 
-address ipv4 10.1.254.2
+address ipv4 10.1.22.254
 
-key 0 $hs7Bg!sPqT1!
-
-!
-
-tacacs server ISE-NAFTA
-
-address ipv4 10.150.130.9
-
-key 0 $hs7Bg!sPqT1!
+key 0 EQRVQEVQE
 
 !
 
-aaa group server tacacs+ NAFTA-TACACS
+tacacs server Mexico
 
-server name ISE-NAFTA
+address ipv4 192.168.100.1
 
-server name F5-GBL
+key 0 EQRVQEVQE
+
+!
+
+aaa group server tacacs+ NAFTA
+
+server name Mexico
+
+server name London
 
 {%- endif %}
 
 !
 
 !
-
-banner login ^C
-
-==============================================================
-
-     This device is property of Leoni AG!
-
-        Unauthorized access prohibited !
-
-            devicename:     $(hostname)
-
-==============================================================
-
-^C
-
 !
 
 line con 0
@@ -372,9 +345,7 @@ escape-character 3
 
 !
 
-ntp server 10.1.196.110
-
-ntp server 10.1.196.120
+ntp server 10.1.56.30
 
 mac address-table notification change
 
@@ -417,5 +388,6 @@ switchport mode trunk
 ip dhcp snooping trust
 
 !
+
 
  
