@@ -1,0 +1,421 @@
+!
+
+mkdir flash:/config
+
+!
+
+conf t
+
+!
+
+service timestamps debug datetime msec
+
+service timestamps log datetime msec
+
+service password-encryption
+
+!
+
+hostname {{ hostname }}
+
+!
+
+logging buffered notifications
+
+no logging console
+
+enable secret 5 secret
+
+!
+
+username netadmin privilege 15 secret 5 secret
+
+aaa new-model
+
+!
+
+!
+
+{% if ise_region == 'ISE-EMEA' -%}
+
+aaa authentication login default group  EMEA-TACACS  group tacacs+ local
+
+{%- elif ise_region == 'ISE-ASIA' -%}
+
+aaa authentication login default group  APAC-TACACS  group tacacs+ local
+
+{%- elif ise_region == 'ISE-NAFTA' -%}
+
+aaa authentication login default group  NAFTA-TACACS  group tacacs+ local
+
+{%- endif %}
+
+aaa authentication login host local
+
+aaa authorization console
+
+aaa authorization config-commands
+
+{% if ise_region == 'ISE-EMEA' -%}
+
+aaa authorization exec default group EMEA-TACACS  group tacacs+ local
+
+{%- elif ise_region == 'ISE-ASIA' -%}
+
+aaa authorization exec default group APAC-TACACS  group tacacs+ local
+
+{%- elif ise_region == 'ISE-NAFTA' -%}
+
+aaa authorization exec default group NAFTA-TACACS  group tacacs+ local
+
+{%- endif %}
+
+aaa authorization exec host local
+
+aaa authorization commands 15 host local
+
+{% if ise_region == 'ISE-EMEA' -%}
+
+aaa accounting exec default start-stop group EMEA-TACACS  group tacacs+
+
+{%- elif ise_region == 'ISE-ASIA' -%}
+
+aaa accounting exec default start-stop group APAC-TACACS  group tacacs+
+
+{%- elif ise_region == 'ISE-NAFTA' -%}
+
+aaa accounting exec default start-stop group NAFTA-TACACS  group tacacs+
+
+{%- endif %}
+
+{% if ise_region == 'ISE-EMEA' -%}
+
+aaa authorization commands 15 default group EMEA-TACACS  group tacacs+ local
+
+{%- elif ise_region == 'ISE-ASIA' -%}
+
+aaa authorization commands 15 default group APAC-TACACS  group tacacs+ local
+
+{%- elif ise_region == 'ISE-NAFTA' -%}
+
+aaa authorization commands 15 default group NAFTA-TACACS  group tacacs+ local
+
+{%- endif %}
+
+!
+
+exit
+
+!
+
+exit
+
+!
+
+netadmin
+
+!
+
+!---------------------------------------------------------------------------------------------------------------------
+
+!
+
+! From here you have to logout and login with local admin! Command authorization
+
+!
+
+!-------------------------------------------------------------------------------------------------------------------
+
+!
+
+no ip domain lookup
+
+ip domain name leoni.local
+
+crypto key generate rsa general-keys modulus 2048
+
+ip ssh version 2
+
+ip name-server 10.216.67.4 10.216.67.5
+
+vtp mode transparent
+
+udld aggressive
+
+ip dhcp snooping vlan 1-1023
+
+no ip dhcp snooping information option
+
+ip dhcp snooping
+
+!
+
+!
+
+errdisable recovery cause all
+
+!
+
+archive
+
+log config
+
+  logging enable
+
+  hidekeys
+
+path flash:/config/archive
+
+maximum 14
+
+write-memory
+
+!
+
+spanning-tree mode rapid-pvst
+
+spanning-tree pathcost method long
+
+!
+
+vlan 111
+
+name mgmt
+
+vlan 144
+
+name clients
+
+vlan 152
+
+name voice
+
+!
+
+interface Vlan1
+
+no ip address
+
+shutdown
+
+!
+
+interface Vlan111
+
+description mgmt
+
+ip address {{ mgmt_ip }} 255.255.255.0
+
+!
+
+ip default-gateway {{ mgmt_gw }}
+
+no ip http server
+
+no ip http secure-server
+
+logging host 10.1.15.155
+
+access-list 10 remark NodeManager
+
+access-list 10 permit 10.1.11.29
+
+access-list 10 permit 10.1.11.62
+
+access-list 10 permit 10.1.11.227
+
+access-list 19 permit 10.1.15.86
+
+access-list 19 remark Smartcollector
+
+!
+
+snmp-server group snmpv3-group v3 priv write snmpv3-write
+
+snmp-server user Leoniv3-l2 snmpv3-group v3 auth sha hc63g37r3!&d6 priv aes 128 h7435j&(shg1hz
+
+snmp-server community 5pG9nFS2 RO 10
+
+snmp-server community fyiuhGpeYvq4SokT RO 19
+
+snmp-server location "{{ snmp_location }}"
+
+!
+
+!
+
+netconf-yang
+
+!
+
+!
+
+{% if ise_region == 'ISE-EMEA' -%}
+
+tacacs server F5-GBL
+
+address ipv4 10.1.254.2
+
+key 0 $hs7Bg!sPqT1!
+
+aaa group server tacacs+ EMEA-TACACS
+
+server name F5-GBL
+
+{%- elif ise_region == 'ISE-ASIA' -%}
+
+tacacs server APAC-PSN03
+
+address ipv4 10.168.131.13
+
+key 7 13411F015C2E036B381439076463
+
+
+tacacs server APAC-PSN04
+
+address ipv4 10.168.131.14
+
+key 7 100A010A5235154A1F343B1F7569
+
+
+aaa group server tacacs+ APAC-TACACS
+
+server name APAC-PSN03
+
+server name APAC-PSN04
+
+ip tacacs source-interface Vlan111
+
+{%- elif ise_region == 'ISE-NAFTA' -%}
+
+tacacs server F5-GBL
+
+address ipv4 10.1.254.2
+
+key 0 $hs7Bg!sPqT1!
+
+!
+
+tacacs server ISE-NAFTA
+
+address ipv4 10.150.130.9
+
+key 0 $hs7Bg!sPqT1!
+
+!
+
+aaa group server tacacs+ NAFTA-TACACS
+
+server name ISE-NAFTA
+
+server name F5-GBL
+
+{%- endif %}
+
+!
+
+!
+
+banner login ^C
+
+==============================================================
+
+     This device is property of Leoni AG!
+
+        Unauthorized access prohibited !
+
+            devicename:     $(hostname)
+
+==============================================================
+
+^C
+
+!
+
+line con 0
+
+authorization commands 15 host
+
+authorization exec host
+
+logging synchronous
+
+login authentication host
+
+escape-character 3
+
+stopbits 1
+
+line aux 0
+
+stopbits 1
+
+line vty 0 4
+
+exec-timeout 15 0
+
+logging synchronous
+
+transport input ssh
+
+escape-character 3
+
+line vty 5 15
+
+exec-timeout 15 0
+
+logging synchronous
+
+transport input ssh
+
+escape-character 3
+
+!
+
+ntp server 10.1.196.110
+
+ntp server 10.1.196.120
+
+mac address-table notification change
+
+mac address-table notification mac-move
+
+!
+
+interface {{ uplink_interface1 }}
+
+description upl-{{uplink_devie_hosthame}}
+
+switchport mode trunk
+
+channel-group {{ port_channel_id }}  mode active
+
+ip dhcp snooping trust
+
+!
+
+interface {{ uplink_interface2 }}
+
+description upl-{{uplink_devie_hosthame}}
+
+switchport mode trunk
+
+channel-group {{ port_channel_id }}  mode active
+
+ip dhcp snooping trust
+
+#end
+
+!
+
+interface Port-channel{{ port_channel_id }}
+
+ description upl-{{uplink_devie_hosthame}}
+
+switchport mode trunk
+
+ip dhcp snooping trust
+
+!
+
+ 
