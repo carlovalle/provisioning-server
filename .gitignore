@@ -1,0 +1,25 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Env / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Logs
+*.log
+
+# DB / volumes (no subir)
+data/
+postgres_data/
+pgdata/
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
