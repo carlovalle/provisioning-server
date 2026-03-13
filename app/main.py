@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from models import Base, Switch
 from database import get_db
-from routers import switches, versions
+from routers import switches, versions, images
 from schemas import SwitchOut
 from database import Base, engine
 
@@ -14,6 +14,7 @@ app = FastAPI()
 # Registrar los routers
 app.include_router(switches.router)
 app.include_router(versions.router)
+app.include_router(images.router)
 
 #change
 #@app.get("/")
