@@ -76,3 +76,10 @@ class UpgradePlanOut(BaseModel):
     mgmt_ip: Optional[str] = None
     reachable: bool
     state: str
+class FileContentOut(BaseModel):
+    path: str
+    content: str
+
+
+class FileContentUpdate(BaseModel):
+    content: str

@@ -153,6 +153,18 @@ def _read_yaml_vars_for_serial(serial: str) -> dict:
 
     return data
 
+def _render_day0_template(template_name: str, context: dict) -> str:
+    day0_templates_dir = os.getenv("DAY0_TEMPLATES_DIR", "/Open_PnP_Server/configs/templates")
+
+    env = Environment(
+        loader=FileSystemLoader(day0_templates_dir),
+        undefined=StrictUndefined,
+        autoescape=False,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    tpl = env.get_template(template_name)
+    return tpl.render(**context)
 
 def normalize_version(version: Optional[str]) -> Optional[str]:
     if not version:
@@ -709,6 +721,121 @@ def upload_dayn_vars(
     db.refresh(sw)
     return sw
 
+@router.post("/generate-day0-from-vars", response_model=schemas.SwitchOut)
+def generate_day0_from_vars(
+    serial_number: str = Form(...),
+    file: UploadFile = File(...),
+    template_name: str = Form("template.j2"),
+    db: Session = Depends(get_db),
+):
+    """
+    Recibe archivo de variables desde GUI/ServiceNow.
+    Genera:
+      - Day 0 config: /Open_PnP_Server/configs/<SERIAL>.cfg
+      - Day N vars:    /data/vars/dayn/<SERIAL>.yml
+    """
+
+    _ensure_dirs()
+    serial = serial_number.strip()
+
+    sw = db.query(models.Switch).filter(models.Switch.serial_number == serial).first()
+    if not sw:
+        raise HTTPException(status_code=404, detail=f"Switch {serial} not found")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="file is required")
+
+    try:
+        raw_content = file.file.read()
+        if not raw_content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+        try:
+            vars_data = yaml.safe_load(raw_content.decode("utf-8")) or {}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid YAML variables file: {e}")
+
+        if not isinstance(vars_data, dict):
+            raise HTTPException(status_code=400, detail="Variables file must be a YAML object")
+
+        # --------
+        # Day N .yml
+        # --------
+        dayn_vars_path = os.path.join(DAYN_VARS_DIR, f"{serial}.yml")
+        with open(dayn_vars_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(vars_data, f, sort_keys=False, allow_unicode=True)
+
+        # --------
+        # Day 0 .cfg
+        # --------
+        day0_context = {
+            "serial_number": serial,
+            **vars_data,
+        }
+
+        try:
+            rendered_day0 = _render_day0_template(template_name, day0_context)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Day0 template render failed: {e}")
+
+        day0_cfg_path = os.path.join(DAY0_DIR, f"{serial}.cfg")
+        with open(day0_cfg_path, "w", encoding="utf-8") as f:
+            f.write(rendered_day0.strip() + "\n")
+
+        # Estado sugerido después de generar Day 0
+        sw.state = "staging"
+
+        _log(
+            db,
+            serial,
+            f"day0-generated template={template_name} cfg={day0_cfg_path} dayn_vars={dayn_vars_path}",
+        )
+        db.commit()
+        db.refresh(sw)
+        return sw
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to generate Day0/DayN files: {e}")
+    finally:
+        try:
+            file.file.close()
+        except Exception:
+            pass
+
+@router.delete("/{serial_number}")
+def delete_switch(serial_number: str, db: Session = Depends(get_db)):
+    serial = serial_number.strip()
+
+    sw = db.query(models.Switch).filter(
+        models.Switch.serial_number == serial
+    ).first()
+
+    if not sw:
+        raise HTTPException(status_code=404, detail=f"Switch {serial} not found")
+
+    # 🧹 opcional: borrar archivos asociados
+    try:
+        import os
+
+        day0_path = f"/Open_PnP_Server/configs/{serial}.cfg"
+        dayn_vars_path = f"/data/vars/dayn/{serial}.yml"
+
+        if os.path.exists(day0_path):
+            os.remove(day0_path)
+
+        if os.path.exists(dayn_vars_path):
+            os.remove(dayn_vars_path)
+
+    except Exception as e:
+        print(f"[delete_switch] warning cleaning files: {e}")
+
+    db.delete(sw)
+    db.commit()
+
+    return {"message": f"Switch {serial} deleted successfully"}
 
 @router.get("/{serial_number}/upgrade-plan", response_model=schemas.UpgradePlanOut)
 def get_upgrade_plan(serial_number: str, db: Session = Depends(get_db)):

@@ -2,19 +2,27 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from models import Base, Switch
 from database import get_db
-from routers import switches, versions, images
+from routers import switches, versions, images, files
 from schemas import SwitchOut
 from database import Base, engine
+from fastapi.middleware.cors import CORSMiddleware
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Registrar los routers
 app.include_router(switches.router)
 app.include_router(versions.router)
 app.include_router(images.router)
+app.include_router(files.router)
 
 #change
 #@app.get("/")
