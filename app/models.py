@@ -10,6 +10,8 @@ class Switch(Base):
     serial_number = Column(String, unique=True, index=True)
     model = Column(String)
     family = Column(String, nullable=True)
+    brand = Column(String, nullable=True)
+    role = Column(String, nullable=True) 
     current_version = Column(String)
     recommended_version = Column(String)
     state = Column(String, default="staging")

@@ -213,6 +213,8 @@ def register_switch(payload: schemas.SwitchCreate, db: Session = Depends(get_db)
         serial_number=serial,
         model=None,
         family=None,
+        brand=None,
+        role=None,
         current_version=None,
         recommended_version=None,
         state="non-connected",
@@ -418,7 +420,28 @@ def report_version(payload: schemas.ReportVersion, db: Session = Depends(get_db)
     db.commit()
     db.refresh(sw)
     return sw
+@router.post("/set-metadata", response_model=schemas.SwitchOut)
+def set_metadata(
+    serial_number: str = Form(...),
+    brand: str | None = Form(None),
+    role: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    serial = serial_number.strip()
+    sw = db.query(models.Switch).filter(models.Switch.serial_number == serial).first()
+    if not sw:
+        raise HTTPException(status_code=404, detail=f"Switch {serial} not found")
 
+    if brand is not None:
+        sw.brand = brand.strip() or None
+
+    if role is not None:
+        sw.role = role.strip() or None
+
+    _log(db, serial, f"metadata-updated brand={sw.brand} role={sw.role}")
+    db.commit()
+    db.refresh(sw)
+    return sw
 
 @router.post("/set-state", response_model=schemas.SwitchOut)
 def set_state(

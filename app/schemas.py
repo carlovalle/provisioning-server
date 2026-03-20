@@ -18,7 +18,8 @@ class SwitchOut(BaseModel):
 
     model: Optional[str] = None
     family: Optional[str] = None
-
+    brand: Optional[str] = None
+    role: Optional[str] = None
     current_version: Optional[str] = None
     recommended_version: Optional[str] = None
 
@@ -83,3 +84,7 @@ class FileContentOut(BaseModel):
 
 class FileContentUpdate(BaseModel):
     content: str
+
+class SwitchMetadataUpdate(BaseModel):
+    brand: Optional[str] = None
+    role: Optional[str] = None
