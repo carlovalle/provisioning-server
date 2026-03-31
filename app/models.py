@@ -31,6 +31,7 @@ class RecommendedVersion(Base):
     #family = Column(String, unique=True, index=True)
     version = Column(String)
     is_recommended = Column(Boolean, nullable=False, default=False)
+    filename = Column(String, nullable=True)
 
 class ProvisioningLog(Base):
     __tablename__ = "provisioning_logs"

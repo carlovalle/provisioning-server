@@ -1,8 +1,5 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
-from database import get_db
+from fastapi import APIRouter, HTTPException
 import schemas
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -11,6 +8,25 @@ DAY0_DIR = os.getenv("DAY0_DIR", "/Open_PnP_Server/configs")
 DAY0_TEMPLATES_DIR = os.getenv("DAY0_TEMPLATES_DIR", "/Open_PnP_Server/configs/templates")
 DAYN_VARS_DIR = os.getenv("DAYN_VARS_DIR", "/data/vars/dayn")
 DAYN_TEMPLATES_DIR = os.getenv("DAYN_TEMPLATES_DIR", "/data/templates/dayn")
+DAYN_LOGS_DIR = os.getenv("DAYN_LOGS_DIR", "/data/logs")
+
+ROLE_STAGE_TEMPLATES = {
+    "access": {
+        "base": "template_access_base.j2",
+        "nac": "template_access_nac.j2",
+        "aaa-final": "template_access_aaa_final.j2",
+    },
+    "backbone": {
+        "base": "template_core_base.j2",
+        # "nac": "template_core_nac.j2",
+        "aaa-final": "template_core_aaa_final.j2",
+    },
+    "wan": {
+        "base": "template_WAN_base.j2",
+        "interfaces": "template_WAN_interfaces.j2",
+        "aaa-final": "template_WAN_aaa_final.j2",
+    },
+}
 
 
 def _read_text_file(path: str) -> str:
@@ -26,6 +42,66 @@ def _write_text_file(path: str, content: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
 
+
+def _normalize_role(role: str) -> str:
+    value = role.strip().lower()
+    if not value:
+        raise HTTPException(status_code=400, detail="role is required")
+    return value
+
+
+def _normalize_stage(stage: str) -> str:
+    value = stage.strip().lower()
+    if not value:
+        raise HTTPException(status_code=400, detail="stage is required")
+    return value
+
+
+def _resolve_dayn_template_path(role: str, stage: str) -> str:
+    normalized_role = _normalize_role(role)
+    normalized_stage = _normalize_stage(stage)
+
+    role_templates = ROLE_STAGE_TEMPLATES.get(normalized_role)
+    if not role_templates:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid role '{role}'. Valid roles: {sorted(ROLE_STAGE_TEMPLATES.keys())}",
+        )
+
+    filename = role_templates.get(normalized_stage)
+    if not filename:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"No template configured for role='{normalized_role}' "
+                f"and stage='{normalized_stage}'"
+            ),
+        )
+
+    return os.path.join(DAYN_TEMPLATES_DIR, filename)
+
+
+def _resolve_serial_log_path(serial: str, log_name: str) -> str:
+    safe_serial = serial.strip()
+    if not safe_serial:
+        raise HTTPException(status_code=400, detail="serial is required")
+    filename = f"{safe_serial}_{log_name}.log"
+    return os.path.join(DAYN_LOGS_DIR, filename)
+
+
+def _resolve_dayn_log_path(serial: str, stage: str) -> str:
+    normalized_stage = _normalize_stage(stage)
+    safe_serial = serial.strip()
+
+    allowed_stages = {"base", "nac", "interfaces", "aaa-final"}
+    if normalized_stage not in allowed_stages:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid stage '{stage}'. Valid stages: {sorted(allowed_stages)}",
+        )
+
+    filename = f"{safe_serial}_dayn_{normalized_stage.replace('-', '_')}.log"
+    return os.path.join(DAYN_LOGS_DIR, filename)
 
 @router.get("/day0-config/{serial}", response_model=schemas.FileContentOut)
 def get_day0_config(serial: str):
@@ -69,43 +145,36 @@ def put_dayn_vars(serial: str, payload: schemas.FileContentUpdate):
     return {"path": path, "content": payload.content}
 
 
-@router.get("/dayn-template/base", response_model=schemas.FileContentOut)
-def get_dayn_template_base():
-    path = os.path.join(DAYN_TEMPLATES_DIR, "template_access_base.j2")
+@router.get("/dayn-template/{role}/{stage}", response_model=schemas.FileContentOut)
+def get_dayn_template(role: str, stage: str):
+    path = _resolve_dayn_template_path(role, stage)
     content = _read_text_file(path)
     return {"path": path, "content": content}
 
 
-@router.put("/dayn-template/base", response_model=schemas.FileContentOut)
-def put_dayn_template_base(payload: schemas.FileContentUpdate):
-    path = os.path.join(DAYN_TEMPLATES_DIR, "template_access_base.j2")
+@router.put("/dayn-template/{role}/{stage}", response_model=schemas.FileContentOut)
+def put_dayn_template(role: str, stage: str, payload: schemas.FileContentUpdate):
+    path = _resolve_dayn_template_path(role, stage)
     _write_text_file(path, payload.content)
     return {"path": path, "content": payload.content}
 
 
-@router.get("/dayn-template/nac", response_model=schemas.FileContentOut)
-def get_dayn_template_nac():
-    path = os.path.join(DAYN_TEMPLATES_DIR, "template_access_nac.j2")
+@router.get("/events-log/{serial}", response_model=schemas.FileContentOut)
+def get_events_log(serial: str):
+    path = _resolve_serial_log_path(serial, "events")
     content = _read_text_file(path)
     return {"path": path, "content": content}
 
 
-@router.put("/dayn-template/nac", response_model=schemas.FileContentOut)
-def put_dayn_template_nac(payload: schemas.FileContentUpdate):
-    path = os.path.join(DAYN_TEMPLATES_DIR, "template_access_nac.j2")
-    _write_text_file(path, payload.content)
-    return {"path": path, "content": payload.content}
-
-
-@router.get("/dayn-template/aaa-final", response_model=schemas.FileContentOut)
-def get_dayn_template_aaa_final():
-    path = os.path.join(DAYN_TEMPLATES_DIR, "template_access_aaa_final.j2")
+@router.get("/day0-log/{serial}", response_model=schemas.FileContentOut)
+def get_day0_log(serial: str):
+    path = _resolve_serial_log_path(serial, "day0")
     content = _read_text_file(path)
     return {"path": path, "content": content}
 
 
-@router.put("/dayn-template/aaa-final", response_model=schemas.FileContentOut)
-def put_dayn_template_aaa_final(payload: schemas.FileContentUpdate):
-    path = os.path.join(DAYN_TEMPLATES_DIR, "template_access_aaa_final.j2")
-    _write_text_file(path, payload.content)
-    return {"path": path, "content": payload.content}
+@router.get("/dayn-log/{serial}/{stage}", response_model=schemas.FileContentOut)
+def get_dayn_log(serial: str, stage: str):
+    path = _resolve_dayn_log_path(serial, stage)
+    content = _read_text_file(path)
+    return {"path": path, "content": content}

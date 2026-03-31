@@ -37,15 +37,17 @@ class SwitchOut(BaseModel):
 class RecommendedVersionCreate(BaseModel):
     family: str
     version: str
-
+    is_recommended: bool = False
 
 class RecommendedVersionOut(BaseModel):
     id: int
     family: str
     version: str
+    is_recommended: bool
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class ReportIP(BaseModel):
     serial_number: str
@@ -88,3 +90,24 @@ class FileContentUpdate(BaseModel):
 class SwitchMetadataUpdate(BaseModel):
     brand: Optional[str] = None
     role: Optional[str] = None
+
+class SwitchUpdate(BaseModel):
+    brand: Optional[str] = None
+    role: Optional[str] = None
+    mgmt_ip: Optional[str] = None
+    recommended_version: Optional[str] = None
+    state: Optional[str] = None
+    model: Optional[str] = None
+    family: Optional[str] = None
+
+class RecommendedVersionUpdate(BaseModel):
+    family: str
+    version: str
+    is_recommended: bool
+
+class ImageFileOut(BaseModel):
+    filename: str
+    size: int
+    modified_at: str
+    version: str | None = None
+    is_recommended: bool = False
